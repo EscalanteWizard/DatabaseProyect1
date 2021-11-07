@@ -143,16 +143,21 @@ create table Matricula(
 );
 
 create table Profesor(
+    cedula int not null,
+    constraint fk_usuario_profesor foreign key (cedula) references Usuario(cedula),
+    constraint pk_profesor primary key (cedula)
+);
+
+create table profesor_grupo(
     numero_periodo int not null,
     anho_periodo int not null,
     nombre_materia varchar(50) not null,
     grado int not null,
     grupo varchar(50),
-    cedula int not null,
-    constraint fk_usuario_profesor foreign key (cedula) references Usuario(cedula),
+    profesor int not null,
+    constraint fk_profesor_grupo foreign key (profesor) references Profesor(cedula),
     constraint fk_grupo_Profesor foreign key (grupo, anho_periodo, numero_periodo, nombre_materia, grado) references Grupo (codigo, anho_periodo, numero_periodo, nombre_materia, numero_grado),
-    constraint pk_profesor primary key (cedula)
-);
+)
 
 create table Salario(
     monto_salario int not null,
@@ -239,11 +244,18 @@ create procedure registro_estudiante_grupo
     @numero_periodo int, 
     @anho_periodo int, 
     @materia varchar(50), 
-    @grado int)
+    @grado int,
+    @estado int output)
 as
-
 BEGIN
-    insert into Estudiante_grupo values (@estudiante, @grupo, @numero_periodo, @anho_periodo, @materia, @grado);
+    declare @grado_est INT
+    select @grado_est = (grado from Estudiante where Estudiante.cedula = @estudiante)
+    if(@grado_est = @grado)
+    begin
+        insert into Estudiante_grupo values (@estudiante, @grupo, @numero_periodo, @anho_periodo, @materia, @grado);
+        @estado = 1
+    end
+    else @estado = 0
 END
 
 --Registra un grupo en la base de datos
@@ -335,4 +347,59 @@ AS
 begin
     insert into Usuario values (@nombre,@cedula,@telefono,@ciudad,@canton,@fecha_nacimiento,@fecha_creacion, @sexo, @passw)
 end
+
+--devuelve la cantidad de estudiantes en un grupo
+create function minimoEstudiantes(@codigo varchar(50), @periodo int, @anho_periodo int, @materia varchar(50), @grado int)
+returns int
+AS
+begin
+declare @ret INT
+select @ret = count(cedula_estudiante) from Estudiante_grupo as EG where EG.codigo_grupo = @codigo and EG.numero_periodo = @periodo and EG.anho_periodo = @anho_periodo and EG.nombre_materia = @materia and EG.numero_grado = @grado
+return @ret
+end
+
+--Cambia el estado de un grupo de cerrado
+create procedure cambiarEstadoGrupo(@codigo varchar(50), @periodo int, @anho_periodo int, @materia varchar(50), @grado int, @nuevoEstado int)
+AS
+BEGIN
+    update Grupo set estado = @nuevoEstado where Grupo.codigo = @codigo and Grupo.numero_periodo = @periodo and Grupo.anho_periodo = @anho_periodo and Grupo.materia = @materia and Grupo.grado = @grado
+END
+
+--Registra a un profesor en la tabla correspondiente
+create procedure registro_profesor(
+    @cedula int
+    )
+    AS
+    BEGIN
+        insert into Profesor values(@cedula)
+    END
+
+--Registra un profesor asociado a un grupo
+create procedure registro_profesor_grupo
+(
+    @numero_periodo int,
+    @anho_periodo int,
+    @materia varchar(50),
+    @grado int,
+    @grupo varchar(50),
+    @cedula int
+)
+as 
+BEGIN
+    insert into profesor_grupo(@numero_periodo, @anho_periodo, @materia, @grado, @grupo, @cedula)
+END
+
+--Registra la informacion de un padre dentro de la tabla correspondiente
+create procedure registro_padre
+(
+    @nombre_c varchar(50),
+    @telefono_c INT,
+    @profesion varchar(50),
+    @cedula int
+)
+AS
+BEGIN
+    insert into padre(@nombre_c, @telefono_c, @profesion, @cedula)
+END
+
 
