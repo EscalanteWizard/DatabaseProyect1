@@ -1,5 +1,5 @@
-namespace TodoApi.Models
-{
+namespace TodoApi.Models{    
+    
     public class EvaluacionGrupo{
         private string nombreMateria;
         private int grado;
