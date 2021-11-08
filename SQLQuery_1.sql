@@ -7,9 +7,11 @@ create table Periodo(
     anho int,
     numero int not null,
     nota_minima int not null,
+    estado int not null,
     CONSTRAINT verif_anho check(anho>2021),
     constraint pk_periodo primary key (anho, numero)
 );
+alter table Periodo add estado int not null
 
 create table Usuario(
     nombre varchar(50) not null,
@@ -224,18 +226,6 @@ BEGIN
     insert into matricula(codigo_grupo, anho_periodo, numero_periodo, materia, grado, estudiante) values (@grupo, @anho_periodo, @numero_periodo, @materia, @grado, @estudiante);
 END
 
---Registra a un estudiante en la tabla correspondiente
-create procedure registro_estudiante
-    (
-    @grado int,
-    @cedula_padre int,
-    @cedula int
-    )
-    AS
-    BEGIN
-        insert into Estudiante values(@grado, @cedula_padre, @cedula)
-    END
-
 --Registra a un estudiante ligado a un grupo, en la tabla de estudiantes por grupo
 create procedure registro_estudiante_grupo
     (@estudiante int, 
@@ -285,6 +275,24 @@ BEGIN
         END
     return @ret
 END
+
+--Registra a un estudiante en la tabla correspondiente
+create procedure registro_estudiante
+    (
+    @grado int,
+    @cedula_padre int,
+    @cedula int
+    )
+    AS
+    BEGIN
+    declare @existencia INT
+        set @existencia = verificarEstudiante(@cedula)
+        if(@existencia = 0)
+        begin
+            insert into Estudiante values(@grado, @cedula_padre, @cedula)
+        end
+    END
+
 
 --Devuelve verdadero(1) en caso de que exista un padre con la cedula indicada
 create function verificarPadre(@cedula int)
@@ -344,7 +352,12 @@ create procedure registrar_usuario
     @passw varchar(50))
 AS
 begin
-    insert into Usuario values (@nombre,@cedula,@telefono,@ciudad,@canton,@fecha_nacimiento,@fecha_creacion, @sexo, @passw)
+    declare @existencia INT
+    set @existencia = verificarUsuario(@cedula)
+    if(existencia = 0)
+    begin
+        insert into Usuario values (@nombre,@cedula,@telefono,@ciudad,@canton,@fecha_nacimiento,@fecha_creacion, @sexo, @passw)
+    end
 end
 
 --devuelve la cantidad de estudiantes en un grupo
@@ -370,7 +383,12 @@ create procedure registro_profesor(
     )
     AS
     BEGIN
-        insert into Profesor values(@cedula)
+        declare @existencia INT
+        set @existencia = verificarProfesor(@cedula)
+        if @existencia = 0
+        begin
+            insert into Profesor values(@cedula)
+        end
     END
 
 --Registra un profesor asociado a un grupo
@@ -398,7 +416,12 @@ create procedure registro_padre
 )
 AS
 BEGIN
-    insert into padre values (@nombre_c, @telefono_c, @profesion, @cedula)
+    declare @existencia int
+    set @existencia = verificarPadre(@cedula)
+    if @existencia = 0
+    begin
+        insert into padre values (@nombre_c, @telefono_c, @profesion, @cedula)
+    end
 END
 
 --Registra la informacion de una materia dentro de la tabla correspondiente
@@ -425,6 +448,7 @@ BEGIN
     insert into Grado values(@numero, @descripcion)
 END
 
+
 --Registra la informacion de una cobro dentro de la tabla correspondiente
 create procedure registro_cobro
 (
@@ -442,7 +466,7 @@ create procedure registro_cobro
 AS
 BEGIN
 declare  @monto int
-    select @monto = costo from Materia_Grado where Materia_Grado.nombre = @materia and Materia_Grado.numero_grado = @grado
+    set @monto = (select costo from Materia_Grado where Materia_Grado.nombre = @materia and Materia_Grado.numero_grado = @grado);
     insert into Cobro (monto, estudiante, codigo_grupo, numero_periodo, anho_periodo, fecha_generacion, fecha_pago, estado, concepto, materia, grado) values (@monto, @estudiante, @codigo_grupo, @numero_periodo, @anho_periodo, @fecha_generacion, @fecha_pago, @estado, @concepto, @materia, @grado)
 END
 
@@ -476,6 +500,7 @@ BEGIN
     insert into Asistencia values (@fecha, @codigo_grupo, @numero_periodo, @anho_periodo, @nombre_materia, @grado, @cedula_estudiante)
 END
 
+
 --Crea un registro de evaluaciones asociado a un estudiante de un determinado grupo
 create procedure registro_evaluaciones_notas
 (
@@ -493,6 +518,7 @@ AS
 BEGIN
     if (@nota > 0 and @nota<101)
     begin
+    if exists(select nombre_materia from Evaluacion_estudiante_grupo as eg where eg.nombre_materia = @nombre_materia and eg.grado = @grado and eg.numero_periodo = @numero_periodo and eg.anho_periodo = @anho_periodo and eg.grupo = @grupo and eg.cedula_estudiante  = @cedula_estudiante)
         insert into Evaluacion_estudiante_grupo values(@nombre_materia, @grado, @numero_periodo, @anho_periodo, @grupo, @criterio, @cedula_estudiante, @nota)
         set @estado = 1
     end
@@ -502,4 +528,114 @@ BEGIN
     end
 END
 
+drop function verificarEvaluaciones
+--Verifica que un grupo tenga evaluaciones y que los porcentajes sumados de las evaluaciones sean iguales a 100
+create function verificarEvaluaciones
+(@codigo varchar(50), @periodo int, @anho_periodo int, @materia varchar(50), @grado int)
+returns int
+as
+BEGIN
+    declare @total int, @estado int
+    set @estado = 0
+    if exists(select distinct grupo from Evaluacion_grupo as G where G.grupo = @codigo and G.numero_periodo = @periodo and G.anho_periodo = @anho_periodo and G.nombre_materia = @materia and G.grado = @grado)
+    begin
+            set @total = (select sum(porcentaje) from Evaluacion_grupo as EG where EG.grupo = @codigo and EG.numero_periodo = @periodo and EG.anho_periodo = @anho_periodo and EG.nombre_materia = @materia and EG.grado = @grado)
+            if @total = 100
+                BEGIN   
+                    set @estado = 1
+                END
+    end
+    else
+    BEGIN
+        set @estado = 0
+    END
+    return @estado
+END
+
+--valida todas las condiciones de apertura y en caso de cumplirlas ebre el periodo
+create procedure aperturaPeriodo(
+    @periodo int,
+    @anho_periodo int,
+    @estado int output
+)
+AS
+BEGIN
+    declare @cantGrupos int, @cantProfesores int, @gruposConEstudiantes int, @codigo varchar(50), @materia varchar(50), @grado int, @resul int, @periodoA int, @anho_periodoA int
+    set @cantGrupos = (select count(codigo) from Grupo as G where G.numero_periodo = @periodo and G.anho_periodo = @anho_periodo)
+    set @cantProfesores = (select count(profesor) from profesor_grupo as pg where pg.numero_periodo = @periodo and pg.anho_periodo = @anho_periodo)
+    set @gruposConEstudiantes = (select count(distinct codigo_grupo) from Estudiante_Grupo as EG where EG.periodo = @periodo and EG.anho_periodo = @anho_periodo)
+    set @estado = 1
+    if @cantGrupos = @cantProfesores and @cantGrupos = @gruposConEstudiantes
+    BEGIN
+        declare cursoActual cursor local
+        for select codigo, numero_periodo, anho_periodo, nombre_materia, numero_grado from Grupo where Grupo.numero_periodo = @periodo and Grupo.anho_periodo = @anho_periodo
+        open cursoActual
+        FETCH
+        next from cursoActual into @codigo, @periodoA, @anho_periodoA, @materia, @grado
+        while @@fetch_status = 0
+        BEGIN
+            set @resul = dbo.verificarEvaluaciones(@codigo, @periodoA, @anho_periodoA, @materia, @grado)
+            if @resul = 0
+                BEGIN   
+                    set @estado = 0
+                END
+            fetch next from cursoActual into @codigo, @periodoA, @anho_periodoA, @materia, @grado
+        END
+        close cursoActual
+        deallocate cursoActual 
+    END
+    ELSE
+    BEGIN
+        set @estado = 0
+    END
+    if @estado = 1
+    begin
+        update Periodo set estado = 1 where Periodo.numero = @periodo and Periodo.anho = @anho_periodo
+    end
+end
+
+create procedure estadoCobro(
+    @estudiante int,
+    @codigo_grupo varchar(50),
+    @numero_periodo int,
+    @anho_periodo int,
+    @estado varchar(50),
+    @materia varchar(50),
+    @grado int
+)
+as 
+BEGIN
+    update Cobro set estado = @estado where Cobro.estudiante = @estudiante  and obro.Codigo_grupo = @codigo_grupo and Cobro.numero_periodo = @numero_periodo and Cobro.anho_periodo = @anho_periodo and Cobro.materia = @materia and Cobro.grado = @grado
+END
+
+--factura el total de los cobros de un estudiante
+--Nota: Aun no funciona
+create procedure facturacion
+(@cedula int, @numero int)
+AS
+BEGIN
+    declare @sumaCobros INT, 
+    @estudiante int,
+    @codigo_grupo varchar(50),
+    @numero_periodo int,
+    @anho_periodo int,
+    @estado varchar(50),
+    @materia varchar(50),
+    @grado int
+    set @sumaCobros = (select sum(monto) from Cobro where cobro.estudiante = @cedula)
+    insert into Factura values(@numero, @sumaCobros)
+      declare cursoActual cursor local
+        for select estudiante, codigo_grupo, numero_periodo, anho_periodo, materia, grado from Cobro where Cobro.estudiante = @estudiante
+        open cursoActual
+        FETCH
+        next from cursoActual into @estudiante, @codigo_grupo, @numero_periodo, @anho_periodo, @materia, @grado
+        while @@fetch_status = 0
+        BEGIN
+            exec estadoCobro @estudiante, @codigo_grupo, @numero_periodo, @anho_periodo, 1, @materia, @grado
+            fetch next from cursoActual into @estudiante, @codigo_grupo, @numero_periodo, @anho_periodo, @materia, @grado
+        END
+        close cursoActual
+        deallocate cursoActual 
+    end
+END
 
