@@ -3,7 +3,7 @@ namespace TodoApi.Models
     public class Usuario
     {
         private string nombre;
-        private string cedula;
+        private int cedula;
         private string telefono;
         private string ciudad;
         private string canton;
@@ -13,31 +13,31 @@ namespace TodoApi.Models
         private DateTime fechaCreacion;
 
         //Constructor
-        public Usuario(string nombre,string cedula,string telefono,string ciudad,string canton,strig sexo,string password,DateTime fechaNac){
-            this.setNombre=nombre;
-            this.setCedula=cedula;
-            this.setTelefono=telefono;
-            this.setCiudad=ciudad;
-            this.setCanton=canton;
-            this.setSexo=sexo;
-            this.setPassword=password;
-            this.setFechaNac=fechaNac;
+        public Usuario(string nombre,int cedula,string telefono,string ciudad,string canton,strig sexo,string password,DateTime fechaNac){
+            this.setNombre(nombre);
+            this.setCedula(cedula);
+            this.setTelefono(telefono);
+            this.setCiudad(ciudad);
+            this.setCanton(canton);
+            this.setSexo(sexo);
+            this.setPassword(password);
+            this.setFechaNac(fechaNac);
             this.setFechaCreacion();
         }
         //Constructor sobrecargado para indicar la fecha de creación
-        public Usuario(string nombre,string cedula,string telefono,string ciudad,string canton,strig sexo,string password,DateTime fechaNac,DateTime fechaCreacion){
-            this.setNombre=nombre;
-            this.setCedula=cedula;
-            this.setTelefono=telefono;
-            this.setCiudad=ciudad;
-            this.setCanton=canton;
-            this.setSexo=sexo;
-            this.setPassword=password;
-            this.setFechaNac=fechaNac;
-            this.fechaCreacion=fechaCreacion;
+        public Usuario(string nombre,int cedula,string telefono,string ciudad,string canton,strig sexo,string password,DateTime fechaNac,DateTime fechaCreacion){
+            this.setNombre(nombre);
+            this.setCedula(cedula);
+            this.setTelefono(telefono);
+            this.setCiudad(ciudad);
+            this.setCanton(canton);
+            this.setSexo(sexo);
+            this.setPassword(password);
+            this.setFechaNac(fechaNac);
+            this.fechaCreacion(fechaCreacion);
         }
         //setters
-        public void setCedula(string cedula){
+        public void setCedula(int cedula){
             this.cedula=cedula;
         }
         public void setNombre(string nombe){
@@ -62,7 +62,7 @@ namespace TodoApi.Models
             this.fechaNac=fechaNac;
         }
         //getters
-        public string getCedula(){
+        public int getCedula(){
             return this.cedula;
         }
         public string getNombre(){
