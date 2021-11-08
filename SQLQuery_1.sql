@@ -113,6 +113,7 @@ create table Evaluacion_estudiante_grupo(
     cedula_estudiante int not null,
     nota int not null,
     constraint fk_grupo_evaluacion_estudiante foreign key (grupo, anho_periodo, numero_periodo, nombre_materia, grado, criterio) references Evaluacion_grupo (grupo, anho_periodo, numero_periodo, nombre_materia, grado, criterio),
+    constraint fk_estudiante_evaluacion_grupo foreign key (cedula_estudiante, grupo, anho_periodo, numero_periodo, nombre_materia, grado) references Estudiante_Grupo (cedula_estudiante, codigo_grupo, anho_periodo, periodo, nombre_materia, numero_grado),
     constraint pk_evaluacion_estudiante_grupo primary key (grupo, anho_periodo, numero_periodo, nombre_materia, grado, criterio, cedula_estudiante)
 );
 
@@ -124,9 +125,8 @@ create table Asistencia(
     nombre_materia varchar(50) not null,
     grado int not null,
     cedula_estudiante int not null,
-    constraint fk_grupo_asistencia foreign key (codigo_grupo, anho_periodo, numero_periodo, nombre_materia, grado) references Grupo (codigo, anho_periodo, numero_periodo, nombre_materia, numero_grado),
-    constraint fk_estudiante_asistencia foreign key (cedula_estudiante) references Estudiante(cedula),
-    constraint pk_asistencia primary key (cedula_estudiante, codigo_grupo, anho_periodo, numero_periodo, nombre_materia, grado)
+    constraint fk_grupo_asistencia foreign key (cedula_estudiante, codigo_grupo, anho_periodo, numero_periodo, nombre_materia, grado) references Estudiante_Grupo (cedula_estudiante, codigo_grupo, anho_periodo, periodo, nombre_materia, numero_grado),
+    constraint pk_asistencia primary key (cedula_estudiante, codigo_grupo, anho_periodo, numero_periodo, nombre_materia, grado, fecha)
 );
 
 create table Matricula(
@@ -179,7 +179,6 @@ create table Cobro(
     monto int not null,
     estudiante int not null,
     codigo_grupo varchar(50) not null,
-    numero_grado int not null,
     numero_periodo int not null,
     anho_periodo int not null,
     fecha_generacion date not null,
@@ -249,13 +248,13 @@ create procedure registro_estudiante_grupo
 as
 BEGIN
     declare @grado_est INT
-    select @grado_est = (grado from Estudiante where Estudiante.cedula = @estudiante)
+    select @grado_est = Estudiante.numero_grado from Estudiante where Estudiante.cedula = @estudiante
     if(@grado_est = @grado)
     begin
         insert into Estudiante_grupo values (@estudiante, @grupo, @numero_periodo, @anho_periodo, @materia, @grado);
-        @estado = 1
+        set @estado = 1
     end
-    else @estado = 0
+    else set @estado = 0
 END
 
 --Registra un grupo en la base de datos
@@ -354,7 +353,7 @@ returns int
 AS
 begin
 declare @ret INT
-select @ret = count(cedula_estudiante) from Estudiante_grupo as EG where EG.codigo_grupo = @codigo and EG.numero_periodo = @periodo and EG.anho_periodo = @anho_periodo and EG.nombre_materia = @materia and EG.numero_grado = @grado
+select @ret = count(cedula_estudiante) from Estudiante_grupo as EG where EG.codigo_grupo = @codigo and EG.periodo = @periodo and EG.anho_periodo = @anho_periodo and EG.nombre_materia = @materia and EG.numero_grado = @grado
 return @ret
 end
 
@@ -362,7 +361,7 @@ end
 create procedure cambiarEstadoGrupo(@codigo varchar(50), @periodo int, @anho_periodo int, @materia varchar(50), @grado int, @nuevoEstado int)
 AS
 BEGIN
-    update Grupo set estado = @nuevoEstado where Grupo.codigo = @codigo and Grupo.numero_periodo = @periodo and Grupo.anho_periodo = @anho_periodo and Grupo.materia = @materia and Grupo.grado = @grado
+    update Grupo set estado = @nuevoEstado where Grupo.codigo = @codigo and Grupo.numero_periodo = @periodo and Grupo.anho_periodo = @anho_periodo and Grupo.nombre_materia = @materia and Grupo.numero_grado = @grado
 END
 
 --Registra a un profesor en la tabla correspondiente
@@ -386,7 +385,7 @@ create procedure registro_profesor_grupo
 )
 as 
 BEGIN
-    insert into profesor_grupo(@numero_periodo, @anho_periodo, @materia, @grado, @grupo, @cedula)
+    insert into profesor_grupo values (@numero_periodo, @anho_periodo, @materia, @grado, @grupo, @cedula)
 END
 
 --Registra la informacion de un padre dentro de la tabla correspondiente
@@ -399,7 +398,108 @@ create procedure registro_padre
 )
 AS
 BEGIN
-    insert into padre(@nombre_c, @telefono_c, @profesion, @cedula)
+    insert into padre values (@nombre_c, @telefono_c, @profesion, @cedula)
+END
+
+--Registra la informacion de una materia dentro de la tabla correspondiente
+create procedure registro_materia
+(
+    @descripcion varchar(50),
+    @nombre varchar(50),
+    @grado int,
+    @costo int
+)
+AS
+BEGIN
+    insert into Materia_Grado values(@descripcion, @nombre, @grado, @costo)
+END
+
+--Registra la informacion de un grado dentro de la tabla correspondiente
+create procedure registro_grado
+(
+    @numero int,
+    @descripcion varchar(50)
+)
+AS
+BEGIN
+    insert into Grado values(@numero, @descripcion)
+END
+
+--Registra la informacion de una cobro dentro de la tabla correspondiente
+create procedure registro_cobro
+(
+    @estudiante int,
+    @codigo_grupo varchar(50),
+    @numero_periodo int,
+    @anho_periodo int,
+    @fecha_generacion date,
+    @fecha_pago date,
+    @estado varchar(50),
+    @concepto varchar(100),
+    @materia varchar(50),
+    @grado int
+)
+AS
+BEGIN
+declare  @monto int
+    select @monto = costo from Materia_Grado where Materia_Grado.nombre = @materia and Materia_Grado.numero_grado = @grado
+    insert into Cobro (monto, estudiante, codigo_grupo, numero_periodo, anho_periodo, fecha_generacion, fecha_pago, estado, concepto, materia, grado) values (@monto, @estudiante, @codigo_grupo, @numero_periodo, @anho_periodo, @fecha_generacion, @fecha_pago, @estado, @concepto, @materia, @grado)
+END
+
+--Registra la informacion del salario de un profesor dentro de la tabla correspondiente
+create procedure registro_salario
+(
+    @monto int,
+    @inicio date,
+    @final date,
+    @cedula_profesor int,
+    @concepto varchar(50)
+)
+AS
+BEGIN
+    insert into Salario values(@monto, @inicio, @final, @cedula_profesor, @concepto)
+END
+
+--Crea un registro de asistencia asociado a un estudiante de un determinado grupo
+create procedure registro_asistencia
+(
+    @fecha date,
+    @codigo_grupo varchar(50),
+    @numero_periodo int,
+    @anho_periodo int,
+    @nombre_materia varchar(50),
+    @grado int,
+    @cedula_estudiante int
+)
+AS
+BEGIN
+    insert into Asistencia values (@fecha, @codigo_grupo, @numero_periodo, @anho_periodo, @nombre_materia, @grado, @cedula_estudiante)
+END
+
+--Crea un registro de evaluaciones asociado a un estudiante de un determinado grupo
+create procedure registro_evaluaciones_notas
+(
+    @nombre_materia varchar(50),
+    @grado int,
+    @numero_periodo int,
+    @anho_periodo int,
+    @grupo varchar(50),
+    @criterio varchar(50),
+    @cedula_estudiante int,
+    @nota int,
+    @estado int output
+)
+AS
+BEGIN
+    if (@nota > 0 and @nota<101)
+    begin
+        insert into Evaluacion_estudiante_grupo values(@nombre_materia, @grado, @numero_periodo, @anho_periodo, @grupo, @criterio, @cedula_estudiante, @nota)
+        set @estado = 1
+    end
+    else
+    BEGIN
+         set @estado = 0
+    end
 END
 
 
