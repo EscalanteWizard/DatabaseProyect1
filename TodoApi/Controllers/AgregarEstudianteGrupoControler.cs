@@ -1,7 +1,7 @@
 using System.Data.SqlClient;
 [HttpPost]
 [ValidateAntiForgeryToken]
-public async Task<IActionResult> Create([Bind("Atributos")]Matricula matricula){
+public async Task<IActionResult> Create([Bind("Atributos")]EstudianteGrupo estudianteGrupo){
     if(ModelState.IsValid){
         SqlConnection conexion=(SqlConnection)_context.Database.GetDbConnection(); //nombre de la conexion
         SqlCommand comando=conexion.CreateCommand(); //comandos que se van a utilizar a travéz de la conexion
