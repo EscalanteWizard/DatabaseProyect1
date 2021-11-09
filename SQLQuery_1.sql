@@ -225,6 +225,31 @@ select @ret = sum(ev_g.porcentaje) from Evaluacion_grupo as ev_g where ev_g.grup
 return @ret
 end
 
+--recibe todos los datos de un Periodo
+--Registra un periodo dentro de la tabla correspondiente
+create procedure registro_periodo(
+    @numero int,
+    @anho int,
+    @nota_minima int,
+    @fecha_inicio date,
+    @fecha_final date,
+    @estado int )
+    as
+    begin
+        insert into Periodo values(@fecha_inicio, @fecha_final, @anho, @numero, @nota_minima, @estado)
+    end
+   
+--los datos necesarios para eliminar un periodo
+--elimina un periodo de la tabla correspondiente
+create procedure eliminacion_periodo(
+    @numero int,
+    @anho int,
+    as
+    begin
+        delete from Periodo where numero = @numero and anho = @anho
+    end
+
+
 --Recibe un grado y los datos del periodo requerido
 --Devuelve una tabla que contiene grupos con cupos diferentes de 0
 create function dbo.grupoConCupo(@grado int, @periodo int,anho int)
@@ -285,6 +310,19 @@ begin
     insert into Grupo values (@materia,@codigo,@cupo,@grado,@numero_periodo,@anho_periodo,@estado)
 end
 
+--los datos necesarios para la eliminacion de un grupo
+--elimina un grupo en la base de datos
+create procedure eliminar_grupo
+    (@anho_periodo int,
+    @numero_periodo int,
+    @codigo varchar(50),
+    @materia varchar(50),
+    @grado int)
+AS
+begin
+    delete from Grupo where codigo = @codigo and numero_periodo = @numero_periodo and anho_periodo = @anho_periodo and nombre_materia = @materia and grado = @grado
+end
+
 --Recibe la cedula de un estudiante
 --Devuelve verdadero(1) en caso de que exista un estudiante con la cedula indicada
 create function verificarEstudiante(@cedula int)
@@ -318,6 +356,43 @@ create procedure registro_estudiante
             insert into Estudiante values(@grado, @cedula_padre, @cedula)
         end
     END
+    
+--Recibe los datos necesarios para la elinminacion de un estudiante
+--elimina a un estudiante en la tabla correspondiente
+create procedure eliminar_estudiante
+    (
+    @cedula int
+    )
+    AS
+    BEGIN
+    declare @existencia INT
+        set @existencia = verificarEstudiante(@cedula)
+        if(@existencia = 0)
+        begin
+            delete from Estudiante where cedula = @cedula
+        end
+    END
+
+--Retorna la informacion general de todos los estudiantes
+create function informacionEstudiantes
+returns table
+as
+return
+(select u.nombre, u.apellido1, u.apellido2, e.cedula, e.grado, u.sexo, u.telefono, u.ciudad from Estudiante as e inner join Usuario as u on e.cedula = u.cedula)
+
+--Retorna la informacion general de todos los profesores
+create function informacionProfesor
+returns table
+as
+return
+(select u.nombre, u.apellido1, u.apellido2, p.cedula, u.sexo, u.telefono, u.ciudad from Profesor as p inner join Usuario as u on e.cedula = u.cedula)
+
+--Retorna la informacion general de todos los padres
+create function informacionPadre
+returns table
+as
+return
+(select u.nombre, u.apellido1, u.apellido2, e.cedula,e.nombre_conyugue, e.telefono_conyugue, u.sexo, u.telefono, u.ciudad from Padre as p inner join Usuario as u on p.cedula = u.cedula)
 
 --Recibe la cedula de un padre
 --Devuelve verdadero(1) en caso de que exista un padre con la cedula indicada
@@ -389,6 +464,20 @@ begin
     end
 end
 
+--Recibe los datos necesarios para la eliminacion de un usuario
+--elimina un usuario en la base de datos
+create procedure registrar_usuario
+    (@cedula int)
+AS
+begin
+    declare @existencia INT
+    set @existencia = verificarUsuario(@cedula)
+    if(existencia = 1)
+    begin
+        delete from Usuario where cedula = @cedula
+    end
+end
+
 --Recibe los datos de un grupo
 --devuelve la cantidad de estudiantes en un grupo
 create function minimoEstudiantes(@codigo varchar(50), @periodo int, @anho_periodo int, @materia varchar(50), @grado int)
@@ -420,6 +509,21 @@ create procedure registro_profesor(
         if @existencia = 0
         begin
             insert into Profesor values(@cedula)
+        end
+    END
+    
+--Recibe la cedula de un profesor
+--elimina a un profesor en la tabla correspondiente
+create procedure eliminar_profesor(
+    @cedula int
+    )
+    AS
+    BEGIN
+        declare @existencia INT
+        set @existencia = verificarProfesor(@cedula)
+        if @existencia = 1
+        begin
+            delete from Profesor where cedula =  @cedula
         end
     END
 
@@ -458,6 +562,22 @@ BEGIN
     end
 END
 
+--Recibe los datos necesarios para la eliminacion de un padre
+--elimina la informacion de un padre de la tabla correspondiente
+create procedure eliminar_padre
+(
+    @cedula int
+)
+AS
+BEGIN
+    declare @existencia int
+    set @existencia = verificarPadre(@cedula)
+    if @existencia = 0
+    begin
+        delete from Padre where cedula = @cedula
+    end
+END
+
 --Recibe todos los datos de una materia
 --Registra la informacion de una materia dentro de la tabla correspondiente
 create procedure registro_materia
@@ -484,8 +604,8 @@ BEGIN
     insert into Grado values(@numero, @descripcion)
 END
 
---Recibe todos los datos necesarios para reealizar un cobro
---Registra la informacion de una cobro dentro de la tabla correspondiente
+--Recibe todos los datos necesarios para realizar un cobro
+--Registra la informacion de un cobro dentro de la tabla correspondiente
 create procedure registro_cobro
 (
     @estudiante int,
@@ -504,6 +624,22 @@ BEGIN
 declare  @monto int
     set @monto = (select costo from Materia_Grado where Materia_Grado.nombre = @materia and Materia_Grado.numero_grado = @grado);
     insert into Cobro (monto, estudiante, codigo_grupo, numero_periodo, anho_periodo, fecha_generacion, fecha_pago, estado, concepto, materia, grado) values (@monto, @estudiante, @codigo_grupo, @numero_periodo, @anho_periodo, @fecha_generacion, @fecha_pago, @estado, @concepto, @materia, @grado)
+END
+
+--Recibe todos los datos necesarios para eliminar un cobro
+--elimina un cobro dentro de la tabla correspondiente
+create procedure eliminacion_cobro
+(
+    @estudiante int,
+    @codigo_grupo varchar(50),
+    @numero_periodo int,
+    @anho_periodo int,
+    @materia varchar(50),
+    @grado int
+)
+AS
+BEGIN
+    delete from Cobro where estudiante = @estudiante and codigo_grupo = @codigo_grupo and numero_periodo = @numero_periodo and anho_periodo = @anho_periodo and materia = @materia and grado = @grado
 END
 
 --Recibe todos los datos del salario para asociarlos a los datos de un profesor
