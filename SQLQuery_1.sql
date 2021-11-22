@@ -13,11 +13,14 @@ create table Periodo(
     constraint pk_periodo primary key (anho, numero)
 );
 --Agregacion del estado al periodo
-alter table Periodo add estado int not null
+alter table Periodo add estado int not null --ERROR: Agregue el estado en la tabla despues del alter, sin quitar el alter
 
+drop table Usuario
 --Tabla que almacena usuarios
 create table Usuario(
     nombre varchar(50) not null,
+    apellido1 varchar(50),
+    apellido2 varchar(50),
     cedula int not null,
     telefono int,
     ciudad varchar(50),
@@ -28,6 +31,9 @@ create table Usuario(
     passw varchar(50) not null,
     constraint pk_usuario primary key (cedula)
 );
+
+alter table Usuario add apellido1 varchar(50);
+alter table Usuario add apellido2 varchar(50);
 
 --Tabla que almacena padres de estudiantes
 create table Padre(
@@ -195,6 +201,7 @@ create table Factura(
     constraint pk_factura primary key(numero)
 );
 
+drop table Cobro
 --Tabla que almacena los cobros ligados a un estudiante
 create table Cobro(
     monto int not null,
@@ -208,7 +215,7 @@ create table Cobro(
     concepto varchar(100) not null,
     materia varchar(50) not null,
     grado int not null,
-    numero_factura int not null,
+    numero_factura int,
     constraint fk_matricula_cobro foreign key (estudiante, anho_periodo, numero_periodo, codigo_grupo, materia, grado) references Matricula (estudiante, anho_periodo, numero_periodo, codigo_grupo, materia, grado),
     constraint fk_factura_cobro foreign key (numero_factura) references Factura(numero),
     constraint pk_cobro primary key (estudiante, anho_periodo, numero_periodo, codigo_grupo, materia, grado)
@@ -224,6 +231,9 @@ declare @ret int
 select @ret = sum(ev_g.porcentaje) from Evaluacion_grupo as ev_g where ev_g.grupo = @codigo_grupo and ev_g.anho_periodo = @anho_periodo and ev_g.numero_periodo = @numero_periodo and ev_g.nombre_materia = @materia
 return @ret
 end
+
+print cast(dbo.sumaEvaluaciones ('45ES', 2023, 2, 'Español') as char(3))
+
 
 --recibe todos los datos de un Periodo
 --Registra un periodo dentro de la tabla correspondiente
@@ -243,7 +253,7 @@ create procedure registro_periodo(
 --elimina un periodo de la tabla correspondiente
 create procedure eliminacion_periodo(
     @numero int,
-    @anho int,
+    @anho int) --ERROR: puse una coma en lugar del parentesis correspondiente
     as
     begin
         delete from Periodo where numero = @numero and anho = @anho
@@ -252,7 +262,7 @@ create procedure eliminacion_periodo(
 
 --Recibe un grado y los datos del periodo requerido
 --Devuelve una tabla que contiene grupos con cupos diferentes de 0
-create function dbo.grupoConCupo(@grado int, @periodo int,anho int)
+create function dbo.grupoConCupo(@grado int, @periodo int,@anho int) --ERROR: quite el arroba en algun momento de la prueba
 returns table 
 as
 RETURN
@@ -320,7 +330,7 @@ create procedure eliminar_grupo
     @grado int)
 AS
 begin
-    delete from Grupo where codigo = @codigo and numero_periodo = @numero_periodo and anho_periodo = @anho_periodo and nombre_materia = @materia and grado = @grado
+    delete from Grupo where codigo = @codigo and numero_periodo = @numero_periodo and anho_periodo = @anho_periodo and nombre_materia = @materia and numero_grado = @grado --ERROR: puse mal el nombre de la columna numero_grado
 end
 
 --Recibe la cedula de un estudiante
@@ -350,7 +360,7 @@ create procedure registro_estudiante
     AS
     BEGIN
     declare @existencia INT
-        set @existencia = verificarEstudiante(@cedula)
+        set @existencia = dbo.verificarEstudiante(@cedula) --ERROR: no se puso el esquema de la función. Esto paso a causa de que fueron funciones de validación que se acomodaron al final
         if(@existencia = 0)
         begin
             insert into Estudiante values(@grado, @cedula_padre, @cedula)
@@ -366,33 +376,30 @@ create procedure eliminar_estudiante
     AS
     BEGIN
     declare @existencia INT
-        set @existencia = verificarEstudiante(@cedula)
+        set @existencia = dbo.verificarEstudiante(@cedula) --ERROR: no se puso el esquema de la función. Esto paso a causa de que fueron funciones de validación que se acomodaron al final
         if(@existencia = 0)
         begin
             delete from Estudiante where cedula = @cedula
         end
     END
 
+------ Información de usuarios mal planteada, se crearón funciones en lugar de vistas, y tabla de usuarios falta de los atributos "apellido1" y "apellido2"
+
 --Retorna la informacion general de todos los estudiantes
-create function informacionEstudiantes
-returns table
-as
-return
+create VIEW informacionEstudiantes as
 (select u.nombre, u.apellido1, u.apellido2, e.cedula, e.grado, u.sexo, u.telefono, u.ciudad from Estudiante as e inner join Usuario as u on e.cedula = u.cedula)
 
 --Retorna la informacion general de todos los profesores
-create function informacionProfesor
-returns table
+create view informacionProfesor
 as
-return
 (select u.nombre, u.apellido1, u.apellido2, p.cedula, u.sexo, u.telefono, u.ciudad from Profesor as p inner join Usuario as u on e.cedula = u.cedula)
 
 --Retorna la informacion general de todos los padres
 create function informacionPadre
-returns table
 as
-return
 (select u.nombre, u.apellido1, u.apellido2, e.cedula,e.nombre_conyugue, e.telefono_conyugue, u.sexo, u.telefono, u.ciudad from Padre as p inner join Usuario as u on p.cedula = u.cedula)
+
+--XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 --Recibe la cedula de un padre
 --Devuelve verdadero(1) en caso de que exista un padre con la cedula indicada
@@ -457,8 +464,8 @@ create procedure registrar_usuario
 AS
 begin
     declare @existencia INT
-    set @existencia = verificarUsuario(@cedula)
-    if(existencia = 0)
+    set @existencia = dbo.verificarUsuario(@cedula)
+    if(@existencia = 0) --ERROR: faltó aderir el esquema y un arroba
     begin
         insert into Usuario values (@nombre,@cedula,@telefono,@ciudad,@canton,@fecha_nacimiento,@fecha_creacion, @sexo, @passw)
     end
@@ -471,8 +478,8 @@ create procedure registrar_usuario
 AS
 begin
     declare @existencia INT
-    set @existencia = verificarUsuario(@cedula)
-    if(existencia = 1)
+    set @existencia = dbo.verificarUsuario(@cedula) --Faltó aderir el esquema y un arroba
+    if(@existencia = 1)
     begin
         delete from Usuario where cedula = @cedula
     end
@@ -505,7 +512,7 @@ create procedure registro_profesor(
     AS
     BEGIN
         declare @existencia INT
-        set @existencia = verificarProfesor(@cedula)
+        set @existencia = dbo.verificarProfesor(@cedula)--ERROR:faltó el esquema
         if @existencia = 0
         begin
             insert into Profesor values(@cedula)
@@ -520,7 +527,7 @@ create procedure eliminar_profesor(
     AS
     BEGIN
         declare @existencia INT
-        set @existencia = verificarProfesor(@cedula)
+        set @existencia = dbo.verificarProfesor(@cedula) --ERROR:Faltó el esquema
         if @existencia = 1
         begin
             delete from Profesor where cedula =  @cedula
@@ -555,7 +562,7 @@ create procedure registro_padre
 AS
 BEGIN
     declare @existencia int
-    set @existencia = verificarPadre(@cedula)
+    set @existencia = dbo.verificarPadre(@cedula) --ERROR: Faltó el esquema
     if @existencia = 0
     begin
         insert into Padre values (@nombre_c, @telefono_c, @profesion, @cedula)
@@ -571,7 +578,7 @@ create procedure eliminar_padre
 AS
 BEGIN
     declare @existencia int
-    set @existencia = verificarPadre(@cedula)
+    set @existencia = dbo.verificarPadre(@cedula) --ERROR: Faltó el esquema
     if @existencia = 0
     begin
         delete from Padre where cedula = @cedula
@@ -771,7 +778,7 @@ BEGIN
 end
 --Recibe los datos de un cobro
 --Actualiza el estado de un cobro
-create procedure estadoCobro(
+create procedure estadoCobro( --En algun momento elimine una c de "cobro en la linea 782"
     @estudiante int,
     @codigo_grupo varchar(50),
     @numero_periodo int,
@@ -782,9 +789,10 @@ create procedure estadoCobro(
 )
 as 
 BEGIN
-    update Cobro set estado = @estado where Cobro.estudiante = @estudiante  and obro.Codigo_grupo = @codigo_grupo and Cobro.numero_periodo = @numero_periodo and Cobro.anho_periodo = @anho_periodo and Cobro.materia = @materia and Cobro.grado = @grado
+    update Cobro set estado = @estado where Cobro.estudiante = @estudiante  and Cobro.Codigo_grupo = @codigo_grupo and Cobro.numero_periodo = @numero_periodo and Cobro.anho_periodo = @anho_periodo and Cobro.materia = @materia and Cobro.grado = @grado
 END
 
+drop procedure Facturacion
 --Recibe la informacion de una factura
 --factura el total de los cobros de un estudiante
 create procedure facturacion
@@ -804,18 +812,21 @@ BEGIN
       declare cursoActual cursor local
         for select estudiante, codigo_grupo, numero_periodo, anho_periodo, materia, grado from Cobro where Cobro.estudiante = @estudiante
         open cursoActual
-        FETCH
-        next from cursoActual into @estudiante, @codigo_grupo, @numero_periodo, @anho_periodo, @materia, @grado
+        FETCH next from cursoActual into @estudiante, @codigo_grupo, @numero_periodo, @anho_periodo, @materia, @grado;
         while @@fetch_status = 0
         BEGIN
+            print 'Entró'
             exec estadoCobro @estudiante, @codigo_grupo, @numero_periodo, @anho_periodo, 1, @materia, @grado
-            fetch next from cursoActual into @estudiante, @codigo_grupo, @numero_periodo, @anho_periodo, @materia, @grado
+            fetch next from cursoActual into @estudiante, @codigo_grupo, @numero_periodo, @anho_periodo, @materia, @grado;
         END
         close cursoActual
-        deallocate cursoActual 
+        deallocate cursoActual
     end
-END
+--ERROR: end sobrante
 
+exec facturacion 23214, 234575
+
+drop function cierreGrupo
 --Recibe los datos de un grupo
 --Valida las condiciones de cierre de un grupo
 create function cierreGrupo(
@@ -828,6 +839,7 @@ begin
     set @evGrupo = (select count(grupo) from Evaluacion_grupo as G where G.grupo = @codigo and G.numero_periodo = @periodo and G.anho_periodo = @anho_periodo and G.nombre_materia = @materia and G.grado = @grado)
     set @cantEst = dbo.minimoEstudiantes(@codigo, @periodo, @anho_periodo, @materia, @grado)
     set @cantEvGrEst = (select count(grupo) from Evaluacion_estudiante_grupo as EEG where EEG.grupo = @codigo and EEG.numero_periodo = @periodo and EEG.anho_periodo = @anho_periodo and EEG.nombre_materia = @materia and EEG.grado = @grado)
+    set @ret = 0 --ERROR: Perdi esta linea :/
     if @evGrupo * @cantEst = @cantEvGrEst
     BEGIN
         set @ret = 1
@@ -835,6 +847,10 @@ begin
     return @ret
 END
 
+print cast(dbo.cierreGrupo('45ES', 2, 2023, 'Español', 3) as char)
+
+
+drop procedure cierrePeriodo
 --Recibe los datos de un periodo
 --Valida las condiciones para que se cierre el periodo, y realiza el cierre
 create procedure cierrePeriodo(
@@ -848,11 +864,12 @@ BEGIN
     declare cursoActual cursor local
         for select codigo, numero_periodo, anho_periodo, nombre_materia, numero_grado from Grupo where Grupo.numero_periodo = @periodo and Grupo.anho_periodo = @periodo
         open cursoActual
-        FETCH
-        next from cursoActual into @codigo, @periodoA, @anhoA, @materiaA, @gradoA
+        FETCH next from cursoActual into @codigo, @periodoA, @anhoA, @materiaA, @gradoA;
         while @@fetch_status = 0
         BEGIN
+            print 'ENTRO'
             set @cierreG = dbo.cierreGrupo(@codigo, @periodoA, @anhoA, @materiaA, @gradoA)
+            print cast(@cierreG as char(3))
             if @cierreG = 1
             begin
                 update Grupo set estado = 1 where Grupo.codigo = @codigo and Grupo.numero_periodo = @periodoA and Grupo.anho_periodo = @anhoA and Grupo.nombre_materia = @materiaA and Grupo.numero_grado = @gradoA
@@ -868,8 +885,9 @@ BEGIN
 
         if @cierreP = 1
         BEGIN
+            print 'qhrfiouewqghriuoewqghiurgui'
             update Periodo set estado = 1 where Periodo.numero = @periodo and Periodo.anho = @anho
         end
 End
 
-
+exec cierrePeriodo 1, 2023
