@@ -1,4 +1,8 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using apiSistemaMatricula.Context;
+using apiSistemaMatricula.Models;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,6 +16,11 @@ namespace apiSistemaMatricula.Controllers
     [ApiController]
     public class GruposController : ControllerBase
     {
+        private readonly AppDbContext context;
+        public GruposController(AppDbContext context)
+        {
+            this.context = context;
+        }
         // GET: api/<GruposController>
         [HttpGet]
         public IEnumerable<string> Get()
