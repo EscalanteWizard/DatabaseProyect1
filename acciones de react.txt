@@ -1,0 +1,281 @@
+Comandos de instalacion de aplicacion y paquetes
+
+-ubicarnos en la carpeta de instalacion de la app
+-Crear la app con: npx create-react-app nombreApp
+-ubicarnos en la carpeta de la app
+-abrir con visual studio code por medio del comando: code .
+-Instalacion de paquetes dentro de la app, con el comando: npm i bootstrap reactstrap axios
+
+Codificacion pre-html
+
+-Desechar dentro de la app, en el archivo "App.js" el import de './logo.svg'
+-Eliminar todo dentro de la funcion App, exceptuando la etiqueta div
+-Importar las siguientes librerias:
+--'bootstrap/dist/css/bootstrap.min.css'
+--axios from 'axios'
+--{Modal, ModalBody, ModalFooter, ModalHeader} from 'reactstrap'
+-Declarar las siguientes variables de acceso y conexion:
+	const baseUrl = 'https://localhost:puerto/api/sistema_matricula';
+	const [data, setData]=useState([]);
+	const [modalInsertar, setModalInsertar]=useState(false);
+	const [modalEditar, setModalEditar]=useState(false);
+	const [modalEliminar, setModalEliminar]=useState(false);
+
+	const [usuarioSeleccionado, setUsuarioSeleccionado]=useState({
+		cedula: '',
+		nombre: '',
+		apellido1: '',
+		apellido2: '',
+		telefono: '',
+		canton: '',
+		ciudad: '',
+		sexo: '',
+		fecha_nacimiento: '',
+		sexo: '',
+		password: ''
+	})
+
+	const handleChange=e=>{
+		setUsuarioSeleccionado({
+			...usuarioSeleccionado,
+			[name]: value
+		});
+		console.log(usuarioSeleccionado);
+	}
+
+	const abrirCerrarModalInsertar=()=>{
+		setModalInsertar(modalInsertar);
+	}
+
+	const abrirCerrarModalEditar=()=>{
+		setModalEditar(modalEditar);
+	}
+
+	const abrirCerrarModalEliminar=()=>{
+		setModalEliminar(modalEliminar);
+	}
+
+	const peticionGet=async()=>{
+	  await axios.get(baseUrl)
+	  .then(response=>{
+	    setData(response.data);
+	  }).catch(error=>{
+		console.log(error);
+	  })
+	}
+
+	const peticionPost=async()=>{
+	  await axios.post(baseUrl, usuarioSeleccionado)
+	  .then(response=>{
+	    setData(data.concat(response.data));
+	    abrirCerrarModalInsertar();
+	  }).catch(error=>{
+		console.log(error);
+	  })
+	}
+
+	const peticionPut=async()=>{
+	  await axios.put(baseUrl+"/"+usuarioSeleccionado.cedula, usuarioSeleccionado)
+	  .then(response=>{
+	    var respuesta = response.data;
+	    var dataAuxiliar=data;
+	    dataAuxiliar.map(usuario=>{
+	      if(usuario.cedula===usuarioSeleccionado.cedula){
+		usuario.nombre = respuesta.nombre;
+		usuario.apellido1 = respuesta.apellido1;
+		usuario.apellido2 = respuesta.apellido2;
+		usuario.telefono = respuesta.telefono;
+		usuario.canton = respuesta.canton;
+		usuario.ciudad = respuesta.ciudad;
+		usuario.fecha_nacimiento = respuesta.fecha_nacimiento;
+		usuario.sexo = respuesta.sexo;
+		usuario.password = respuesta.password;
+	      }
+	    });
+	    abrirCerrarModalEditar();
+	  }).catch(error=>{
+		console.log(error);
+	  })
+	}
+
+	const peticionDelete=async()=>{
+	  await axios.delete(baseUrl+"/"+usuarioSeleccionado.cedula)
+	  .then(response=>{
+	    setData(data.filter(usuario=>usuario.cedula!==response.data));
+	    abrirCerrarModalEditar();
+	  }).catch(error=>{
+		console.log(error);
+	  })
+	}
+
+	const seleccionarUsuario=(usuario, caso)=>{
+		setUsuarioSeleccionado(usuario);
+		(caso==="Editar")?
+		abrirCerrarModalEditar(): abrirCerrarModalEliminar()
+	}
+
+	useEffect(()=>{
+	  peticionGet();
+	},[])
+
+Programacion en modelo html
+
+-Disenho de la tabla (usuario):
+	function App(){
+	    <div className="App">
+	      <br/><br/>
+	      <button onClick={()=>abrirCerrarModalInsertar()} className="btn btn-success">Insertar nuevo usuario</button>
+	      <br/><br/>
+	      <table className="table table-bordered">
+		<Thead>
+		  <tr>
+			<th>Cedula</th>
+			<th>Nombre</th>
+			<th>Apellido1</th>
+			<th>Apellido2</th>
+			<th>Telefono</th>
+			<th>Canton</th>
+			<th>Ciudad</th>
+			<th>Sexo</th>
+			<th>Fecha_nacimiento</th>
+			<th>Fecha_creaion</th>
+			<th>Password</th>
+			<th>Acciones</th>
+		  <tr>
+		</Thead>
+		<tbody>
+		  {data.map(usuario=>(
+		    <tr key={usuario.cedula}>
+			<td>usuario.cedula</td>
+			<td>usuario.nombre</td>
+			<td>usuario.apellido1</td>
+			<td>usuario.apellido2</td>
+			<td>usuario.telefono</td>
+			<td>usuario.canton</td>
+			<td>usuario.ciudad</td>
+			<td>usuario.fecha_nacimiento</td>
+			<td>usuario.fecha_creacion</td>
+			<td>usuario.password</td>
+			<td>
+				<button className="btn btn-primary" onClick={()=>seleccionarUsuario(usuario, "Editar")}>Editar</button> {" "}
+				<button className="btn btn-danger" onClick={()=>seleccionarUsuario(usuario, "Eliminar")}>Eliminar</button>
+		    </tr>
+		  ))}
+		</tbody>
+	      </table>
+		<Modal isOpen={modalInsertar}>
+		<ModalHeader>Insertar Usuario</ModalHeader>
+		<ModalBody>
+		  <div className="form-group">
+			<label>Cedula: </label>
+			<br/>
+			<input type="text" className="form-control" name="cedula" onChange={handleChange}/>
+			<br />
+			<label>Nombre: </label>
+			<br />
+			<input type="text" className="form-control" name="nombre" onChange={handleChange}/>
+			<br />
+			<label>Primer Apellido: </label>
+			<br />
+			<input type="text" className="form-control" name="apellido1" onChange={handleChange}/>
+			<br />
+			<label>Segundo Apellido: </label>
+			<br />
+			<input type="text" className="form-control" name="apellido2" onChange={handleChange}/>
+			<br />
+			<label>Telefono: </label>
+			<br />
+			<input type="text" className="form-control" name="telefono" onChange={handleChange}/>
+			<br />
+			<label>Canton: </label>
+			<br />
+			<input type="text" className="form-control" name="canton" onChange={handleChange}/>
+			<br />
+			<label>Ciudad: </label>
+			<br />
+			<input type="text" className="form-control" name="ciudad" onChange={handleChange}/>
+			<br />
+			<label>Sexo: </label>
+			<br />
+			<input type="text" className="form-control" name="sexo" onChange={handleChange}/>
+			<br />
+			<label>Fecha de nacimiento: </label>
+			<br />
+			<input type="text" className="form-control" name="fecha_nacimiento" onChange={handleChange}/>
+			<br />
+			<label>Contraseña: </label>
+			<br />
+			<input type="text" className="form-control" name="password" onChange={handleChange}/>
+			<br />
+		  </div>
+		</ModalBody>
+		<ModalFooter>
+		  <button className ="btn btn-primary" onClick={()=>peticionPost()}>Insertar</button>{" "}
+		  <button className ="btn btn-danger" onClick={()=>abrirCerrarModalInsertar()}>Cancelar</button>
+		</ModalFooter>
+		</Modal>
+
+		<Modal isOpen={modalEditar}>
+		<ModalHeader>Editar Usuario</ModalHeader>
+		<ModalBody>
+		  <div className="form-group">
+			<label>Cedula: </label>
+			<br/>
+			<input type="text" className="form-control" name="cedula" readOnly value={usuarioSeleccionado && usuarioSeleccionado.cedula}/>
+			<br />
+			<label>Nombre: </label>
+			<br />
+			<input type="text" className="form-control" name="nombre" onChange={handleChange} value={usuarioSeleccionado && usuarioSeleccionado.nombre}/>
+			<br />
+			<label>Primer Apellido: </label>
+			<br />
+			<input type="text" className="form-control" name="apellido1" onChange={handleChange} value={usuarioSeleccionado && usuarioSeleccionado.apellido1}/>
+			<br />
+			<label>Segundo Apellido: </label>
+			<br />
+			<input type="text" className="form-control" name=apellido2" onChange={handleChange} value={usuarioSeleccionado && usuarioSeleccionado.apellido2}/>
+			<br />
+			<label>Telefono: </label>
+			<br />
+			<input type="text" className="form-control" name=telefono" onChange={handleChange} value={usuarioSeleccionado && usuarioSeleccionado.telefono}/>
+			<br />
+			<label>Canton: </label>
+			<br />
+			<input type="text" className="form-control" name="canton" onChange={handleChange} value={usuarioSeleccionado && usuarioSeleccionado.canton}/>
+			<br />
+			<label>Ciudad: </label>
+			<br />
+			<input type="text" className="form-control" name="ciudad" onChange={handleChange} value={usuarioSeleccionado && usuarioSeleccionado.ciudad}/>
+			<br />
+			<label>Sexo: </label>
+			<br />
+			<input type="text" className="form-control" name="sexo" onChange={handleChange} value={usuarioSeleccionado && usuarioSeleccionado.sexo}/>
+			<br />
+			<label>Fecha de nacimiento: </label>
+			<br />
+			<input type="text" className="form-control" name="fecha_nacimiento "onChange={handleChange} value={usuarioSeleccionado && usuarioSeleccionado.fecha_nacimiento}/>
+			<br />
+			<label>Contraseña: </label>
+			<br />
+			<input type="text" className="form-control" name="password" onChange={handleChange} value={usuarioSeleccionado && usuarioSeleccionado.password}/>
+			<br />
+		  </div>
+		</ModalBody>
+		<ModalFooter>
+		  <button className ="btn btn-primary" onClick={()=>peticionPut()}>Editar</button>{" "}
+		  <button className ="btn btn-danger" onClick={()=>abrirCerrarModalEditar()}>Cancelar</button>
+		</ModalFooter>
+		</Modal>
+		
+		<Modal isOpen={modalEliminar}>
+		<ModalBody>
+			¿Estas seguro de eliminar este usuario?{usuarioSeleccionado && usuarioSeleccionado.cedula}?
+		</ModalBody>
+		<ModalFooter>
+			<button className ="btn btn-danger" onClick={()=>peticionDelete()}>Si</button>
+			<button className ="btn btn-secondary" onClick={()=>abrirCerrarModalEliminar()}>No</button>
+		</ModalFooter>
+		</Modal>
+	    </div>
+	  );
+	}
