@@ -75,7 +75,7 @@ namespace apiSistemaMatricula.Controllers
         }
 
         // PUT api/<UsuariosController>/5
-        [HttpPut("{id}")]
+        [HttpPut]
         public ActionResult Put(int id, [FromBody] Usuarios usuario)
         {
             try
@@ -97,7 +97,7 @@ namespace apiSistemaMatricula.Controllers
         }
 
         // DELETE api/<UsuariosController>/5
-        [HttpDelete("{id}")]
+        [HttpDelete]
         public ActionResult Delete(int id)
         {
             try

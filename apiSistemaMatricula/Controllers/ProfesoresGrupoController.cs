@@ -23,32 +23,65 @@ namespace apiSistemaMatricula.Controllers
         }
         // GET: api/<GruposController>
         [HttpGet]
-        public IEnumerable<string> Get()
+        public ActionResult Get()
         {
-            return new string[] { "value1", "value2" };
-        }
-
-        // GET api/<GruposController>/5
-        [HttpGet("{id}")]
-        public string Get(int id)
-        {
-            return "value";
-        }
-
+             try
+            {                
+                SqlConnection conexion = (SqlConnection)context.Database.GetDbConnection(); //nombre de la conexion
+                SqlCommand comando = conexion.CreateCommand(); //comandos que se van a utilizar a travéz de la conexion
+                conexion.Open(); //apertura de la conexión
+                comando.CommandType = System.Data.CommandType.Text;  //se define que el comando el del tipo procedimiento almacenado
+                comando.CommandText = ""; //verificar disponibilidad del procedimiento**********
+                comando.ExecuteNonQuery();
+                conexion.Close();
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }        
         // POST api/<GruposController>
         [HttpPost]
-        public void Post([FromBody] string value)
+        public ActionResult Post([FromBody] ProfesoresGrupo profesorGrupo )
         {
+            try
+            {
+                if (ModelState.IsValid) {
+                    SqlConnection conexion = (SqlConnection)context.Database.GetDbConnection(); //nombre de la conexion
+                    SqlCommand comando = conexion.CreateCommand(); //comandos que se van a utilizar a travéz de la conexion
+                    conexion.Open(); //apertura de la conexión
+                    comando.CommandType = System.Data.CommandType.StoredProcedure;  //se define que el comando el del tipo procedimiento almacenado
+                    comando.CommandText = "registro_profesor_grupo";  //variable del texto del comando que se va a llamar a través de la conexión
+
+                    comando.Parameters.Add("@numero_periodo", System.Data.SqlDbType.Int).Value = profesorGrupo.numero_periodo;
+                    comando.Parameters.Add("@anho_periodo", System.Data.SqlDbType.Int).Value = profesorGrupo.anho_periodo;
+                    comando.Parameters.Add("@materia", System.Data.SqlDbType.VarChar,50).Value = profesorGrupo.materia;
+                    comando.Parameters.Add("@grado", System.Data.SqlDbType.Int).Value = profesorGrupo.grado;
+                    comando.Parameters.Add("@grupo", System.Data.SqlDbType.VarChar, 50).Value = profesorGrupo.grupo;
+                    comando.Parameters.Add("@cedula", System.Data.SqlDbType.Int).Value = profesorGrupo.cedula;
+                    
+                    comando.ExecuteNonQuery();
+                    conexion.Close(); //cierre de la conexión
+                    return Ok(usuario);
+                }
+                 else { return BadRequest(); }
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+
         }
 
         // PUT api/<GruposController>/5
-        [HttpPut("{id}")]
+        [HttpPut]
         public void Put(int id, [FromBody] string value)
         {
         }
 
         // DELETE api/<GruposController>/5
-        [HttpDelete("{id}")]
+        [HttpDelete]
         public void Delete(int id)
         {
         }
