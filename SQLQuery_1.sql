@@ -171,6 +171,13 @@ create table Profesor(
     constraint pk_profesor primary key (cedula)
 );
 
+--Tabla que almacena administradores
+create table Administrador(
+    cedula int not null,
+    constraint fk_usuario_administrador foreign key (cedula) references Usuario(cedula),
+    constraint pk_administrador primary key (cedula)
+);
+
 --Tabla que almacena profesores ligados a un grupo
 create table profesor_grupo(
     numero_periodo int not null,
@@ -262,12 +269,13 @@ create procedure eliminacion_periodo(
 
 --Recibe un grado y los datos del periodo requerido
 --Devuelve una tabla que contiene grupos con cupos diferentes de 0
-create function dbo.grupoConCupo(@grado int, @periodo int,@anho int) --ERROR: quite el arroba en algun momento de la prueba
+create function grupoConCupo(@grado int, @periodo int,@anho int) --ERROR: quite el arroba en algun momento de la prueba
 returns table 
 as
 RETURN
 (select codigo, anho_periodo, numero_periodo, nombre_materia, numero_grado from Grupo as G where G.numero_grado = @grado and G.numero_periodo = @periodo and G.anho_periodo = @anho and G.cupo != 0)
 
+drop proc registrarMatricula
 --Recibe los datos del estudiante y el grupo al que se desea matricular
 --Registra una matricula en su respectiva tabla
 create procedure registrarMatricula
@@ -280,7 +288,12 @@ create procedure registrarMatricula
 as
 
 BEGIN
+    --declare @tabla table
+    --set @tabla = 
+    if exists(dbo.grupoConCupo(@grado,@numero_periodo, @anho_periodo))
+    begin
     insert into matricula(codigo_grupo, anho_periodo, numero_periodo, materia, grado, estudiante) values (@grupo, @anho_periodo, @numero_periodo, @materia, @grado, @estudiante);
+    end
 END
 
 --Recibe los datos de un estudiante y del grupo al que es ligado
@@ -386,6 +399,8 @@ create procedure eliminar_estudiante
 ------ Información de usuarios mal planteada, se crearón funciones en lugar de vistas, y tabla de usuarios falta de los atributos "apellido1" y "apellido2"
 
 --Retorna la informacion general de todos los estudiantes
+create view informacionUsuarios as (select u.nombre from Usuario as u)
+
 create VIEW informacionEstudiantes as
 (select u.nombre, u.apellido1, u.apellido2, e.cedula, e.grado, u.sexo, u.telefono, u.ciudad from Estudiante as e inner join Usuario as u on e.cedula = u.cedula)
 
@@ -456,7 +471,7 @@ create procedure registrar_usuario
     @cedula int,
     @telefono int,
     @ciudad varchar(50),
-    @canton int,
+    @canton varchar(50),
     @fecha_nacimiento date,
     @fecha_creacion date,
     @sexo varchar(50),
@@ -467,13 +482,13 @@ begin
     set @existencia = dbo.verificarUsuario(@cedula)
     if(@existencia = 0) --ERROR: faltó aderir el esquema y un arroba
     begin
-        insert into Usuario values (@nombre,@cedula,@telefono,@ciudad,@canton,@fecha_nacimiento,@fecha_creacion, @sexo, @passw)
+        insert into Usuario(nombre, cedula, telefono, ciudad, canton, fecha_nacimiento, fecha_creacion, sexo, passw) values (@nombre,@cedula,@telefono,@ciudad,@canton,@fecha_nacimiento,@fecha_creacion, @sexo, @passw)
     end
 end
 
 --Recibe los datos necesarios para la eliminacion de un usuario
 --elimina un usuario en la base de datos
-create procedure registrar_usuario
+create procedure eliminar_usuario
     (@cedula int)
 AS
 begin
@@ -785,18 +800,20 @@ create procedure estadoCobro( --En algun momento elimine una c de "cobro en la l
     @anho_periodo int,
     @estado varchar(50),
     @materia varchar(50),
-    @grado int
+    @grado int,
+    @factura int
 )
 as 
 BEGIN
     update Cobro set estado = @estado where Cobro.estudiante = @estudiante  and Cobro.Codigo_grupo = @codigo_grupo and Cobro.numero_periodo = @numero_periodo and Cobro.anho_periodo = @anho_periodo and Cobro.materia = @materia and Cobro.grado = @grado
+    update Cobro set numero_factura = @factura
 END
 
-drop procedure Facturacion
+drop procedure pagarTodo
 --Recibe la informacion de una factura
 --factura el total de los cobros de un estudiante
-create procedure facturacion
-(@cedula int, @numero int)
+create procedure pagarTodo
+(@cedula int)
 AS
 BEGIN
     declare @sumaCobros INT, 
@@ -806,24 +823,46 @@ BEGIN
     @anho_periodo int,
     @estado varchar(50),
     @materia varchar(50),
-    @grado int
-    set @sumaCobros = (select sum(monto) from Cobro where cobro.estudiante = @cedula)
-    insert into Factura values(@numero, @sumaCobros)
+    @grado int,
+    @monto int,
+    @numeroFactura int
       declare cursoActual cursor local
-        for select estudiante, codigo_grupo, numero_periodo, anho_periodo, materia, grado from Cobro where Cobro.estudiante = @estudiante
+        for select estudiante, codigo_grupo, numero_periodo, anho_periodo, materia, grado, monto from Cobro where Cobro.estudiante = @estudiante
         open cursoActual
-        FETCH next from cursoActual into @estudiante, @codigo_grupo, @numero_periodo, @anho_periodo, @materia, @grado;
+        FETCH next from cursoActual into @estudiante, @codigo_grupo, @numero_periodo, @anho_periodo, @materia, @grado, @monto;
         while @@fetch_status = 0
         BEGIN
-            print 'Entró'
-            exec estadoCobro @estudiante, @codigo_grupo, @numero_periodo, @anho_periodo, 1, @materia, @grado
-            fetch next from cursoActual into @estudiante, @codigo_grupo, @numero_periodo, @anho_periodo, @materia, @grado;
+            set @numeroFactura = ROUND(((9999 - 1000) * RAND() + 1000), 0)
+            insert into Factura values(@numeroFactura, @monto)
+            exec estadoCobro @estudiante, @codigo_grupo, @numero_periodo, @anho_periodo, 'Pagado', @materia, @grado, @numeroFactura
+            fetch next from cursoActual into @estudiante, @codigo_grupo, @numero_periodo, @anho_periodo, @materia, @grado, @monto;
         END
         close cursoActual
         deallocate cursoActual
     end
---ERROR: end sobrante
 
+create procedure pagarCobro(
+    @estudiante int,
+    @codigo_grupo varchar(50),
+    @numero_periodo int,
+    @anho_periodo int,
+    @estado varchar(50),
+    @monto int, 
+    @materia varchar(50),
+    @grado int,
+    @concepto varchar(50))
+    as
+    BEGIN
+        declare @existe varchar, @numeroFactura int
+        set @concepto = (select c.concepto from Cobro as c where c.estudiante = @ estudiante and c.codigo_grupo = @codigo_grupo and c.numero_perido = @numero_periodo and c.anho_perido = @anho_periodo and c.materia = @materia and c.grado = @grado)
+        if @existe != null
+        BEGIN
+            select @numeroFactura = ROUND(((9999 - 1000-1) * RAND() + 1000), 0)
+            insert into Factura values(@numeroFactura, @monto)
+            exec estadoCobro @estudiante, @codigo_grupo, @numero_periodo, @anho_periodo, 'Pagado', @materia, @grado, @numeroFactura
+        END
+    end
+)
 exec facturacion 23214, 234575
 
 drop function cierreGrupo
@@ -857,6 +896,7 @@ create procedure cierrePeriodo(
     @periodo INT,
     @anho int
 )
+
 as 
 BEGIN
     declare @codigo varchar(50), @periodoA int, @anhoA int, @materiaA varchar(50), @gradoA int, @cierreG int, @cierreP int
