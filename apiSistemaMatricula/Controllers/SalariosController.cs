@@ -20,24 +20,31 @@ namespace apiSistemaMatricula.Controllers
         public SalariosController(AppDbContext context)
         {
             this.context = context;
-        }
-        / GET: api/<GruposController>
-        [HttpGet]
-        public IEnumerable<string> Get()
-        {
-            return new string[] { "value1", "value2" };
-        }
-
+        }        
         // GET api/<GruposController>/5
-        [HttpGet("{id}")]
-        public string Get(int id)
+        [HttpGet]
+        public ActionResult Get()
         {
-            return "value";
+            try
+            {                
+                SqlConnection conexion = (SqlConnection)context.Database.GetDbConnection(); //nombre de la conexion
+                SqlCommand comando = conexion.CreateCommand(); //comandos que se van a utilizar a travéz de la conexion
+                conexion.Open(); //apertura de la conexión
+                comando.CommandType = System.Data.CommandType.Text;  //se define que el comando el del tipo procedimiento almacenado
+                comando.CommandText = "ConsultrSalario";  //**((revisar la disponibilidad del método))
+                comando.ExecuteNonQuery();
+                conexion.Close();
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
         // POST api/<GruposController>
         [HttpPost]
-        public void Post([FromBody] string value)
+        public void Post([FromBody] )
         {
         }
 

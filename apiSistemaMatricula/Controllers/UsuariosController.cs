@@ -20,31 +20,12 @@ namespace apiSistemaMatricula.Controllers
         public UsuariosController(AppDbContext context)
         {
             this.context = context;
-        }
-        /** GET: api/<UsuariosController>
-        [HttpGet]
-        public ActionResult Get()
-        {
-            try {
-                return Ok(context.Usuario.ToList());
-            } catch (Exception ex){
-                return BadRequest(ex.Message);
-            }
-        }**/
-
-        /**public IEnumerable<string> Get()
-        {
-            return new string[] { "value1", "value2" };
-        }**/
-
-        // GET api/<UsuariosController>/5
+        }        
         [HttpGet]
         public ActionResult Get()
         {
             try
-            {
-                //var usuario = context.Usuario.FirstOrDefault(g => g.cedula == id);
-                //return Ok(usuario);
+            {                
                 SqlConnection conexion = (SqlConnection)context.Database.GetDbConnection(); //nombre de la conexion
                 SqlCommand comando = conexion.CreateCommand(); //comandos que se van a utilizar a travéz de la conexion
                 conexion.Open(); //apertura de la conexión
@@ -59,23 +40,6 @@ namespace apiSistemaMatricula.Controllers
                 return BadRequest(ex.Message);
             }
         }
-
-        // POST api/<UsuariosController>
-        /**[HttpPost]
-        public ActionResult Post([FromBody] Usuarios usuario)
-        {
-            try
-            {
-                context.Usuario.Add(usuario);
-                context.SaveChanges();
-                return CreatedAtRoute("GetUsuario", new {id = usuario.cedula}, usuario);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-        }**/
-
         [HttpPost]
         //[ValidateAntiForgeryToken]
         public ActionResult HOLA([FromBody] Usuarios usuario)
